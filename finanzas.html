@@ -1,0 +1,1015 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="finanzIA" />
+  <link rel="manifest" href="manifest.json" />
+  <title>finanzIA</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body style="margin:0;background:#0a0a0f">
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useMemo, useEffect } = React;
+
+const CATEGORIES = {
+  income:  ["Sueldo","Préstamo","Crédito","Reembolso","Venta","Freelance","Otros ingresos"],
+  expense: ["Vivienda","Alimentación","Transporte","Familia","Entretenimiento","Ropa","Salud","Servicios","Deudas/Cuotas","Viajes","Revolut/Bancario","Otros gastos"],
+};
+
+const ICONS = {
+  Sueldo:"💼", Préstamo:"🤝", Crédito:"💳", Reembolso:"↩️", Venta:"🛍️", Freelance:"💻", "Otros ingresos":"💰",
+  Vivienda:"🏠", Alimentación:"🛒", Transporte:"🚗", Familia:"👨‍👩‍👧", Entretenimiento:"🎭",
+  Ropa:"👕", Salud:"🏥", Servicios:"⚡", "Deudas/Cuotas":"⊖", Viajes:"✈️", "Revolut/Bancario":"🔄", "Otros gastos":"📦",
+};
+
+const fmt    = (n) => new Intl.NumberFormat("es-AR", { style:"currency", currency:"EUR", maximumFractionDigits:0 }).format(n);
+const fmtDec = (n) => new Intl.NumberFormat("es-AR", { style:"currency", currency:"EUR", minimumFractionDigits:2, maximumFractionDigits:2 }).format(n);
+const fmtARS = (n) => new Intl.NumberFormat("es-AR", { style:"currency", currency:"ARS", maximumFractionDigits:0 }).format(n);
+const today  = () => new Date().toISOString().split("T")[0];
+
+const DEFAULT_DATA = {
+  transactions: [
+    { id:1,  type:"income",  category:"Sueldo",           amount:2650, date:"2026-05-01", note:"Sueldo mayo" },
+    { id:2,  type:"income",  category:"Préstamo",         amount:1000, date:"2026-05-10", note:"Préstamo Mile" },
+    { id:3,  type:"income",  category:"Crédito",          amount:1400, date:"2026-05-10", note:"AIB Credit Card" },
+    { id:4,  type:"income",  category:"Reembolso",        amount:50,   date:"2026-05-15", note:"Reembolso Amazon" },
+    { id:5,  type:"income",  category:"Venta",            amount:85,   date:"2026-05-20", note:"Venta Vinted" },
+    { id:6,  type:"expense", category:"Vivienda",         amount:608,  date:"2026-05-01", note:"Alquiler Dublin" },
+    { id:7,  type:"expense", category:"Deudas/Cuotas",    amount:1232, date:"2026-05-05", note:"Pago tarjeta AIB" },
+    { id:8,  type:"expense", category:"Deudas/Cuotas",    amount:312,  date:"2026-05-05", note:"Préstamo AIB" },
+    { id:9,  type:"expense", category:"Deudas/Cuotas",    amount:140,  date:"2026-05-07", note:"Revolut préstamo" },
+    { id:10, type:"expense", category:"Deudas/Cuotas",    amount:180,  date:"2026-04-27", note:"Revolut préstamo abril" },
+    { id:11, type:"expense", category:"Viajes",           amount:1100, date:"2026-05-08", note:"Pasaje ARG-Dublin" },
+    { id:12, type:"expense", category:"Servicios",        amount:194,  date:"2026-05-12", note:"Pasaporte express argentino" },
+    { id:13, type:"expense", category:"Familia",          amount:129,  date:"2026-05-10", note:"Rocío" },
+    { id:14, type:"expense", category:"Familia",          amount:41,   date:"2026-05-10", note:"Mamá (Argenis)" },
+    { id:15, type:"expense", category:"Familia",          amount:29,   date:"2026-05-01", note:"Mamá efectivo" },
+    { id:16, type:"expense", category:"Familia",          amount:16,   date:"2026-04-28", note:"Rocío" },
+    { id:17, type:"expense", category:"Familia",          amount:16,   date:"2026-05-11", note:"Comida con papá" },
+    { id:18, type:"expense", category:"Servicios",        amount:16,   date:"2026-05-14", note:"Agua/sodería mamá" },
+    { id:19, type:"expense", category:"Alimentación",     amount:142,  date:"2026-05-15", note:"Asado + bebida/carbón" },
+    { id:20, type:"expense", category:"Alimentación",     amount:21,   date:"2026-05-14", note:"Green House cafetería con mamá" },
+    { id:21, type:"expense", category:"Alimentación",     amount:13,   date:"2026-05-18", note:"Cena Meli, Tomi + Coca" },
+    { id:22, type:"expense", category:"Transporte",       amount:12,   date:"2026-05-10", note:"Nafta" },
+    { id:23, type:"expense", category:"Transporte",       amount:35,   date:"2026-05-12", note:"Comida + nafta con Germán" },
+    { id:24, type:"expense", category:"Ropa",             amount:77,   date:"2026-05-16", note:"Life Style Sport (Klarna)" },
+    { id:25, type:"expense", category:"Ropa",             amount:38,   date:"2026-05-16", note:"Classi Football Shirt (Klarna)" },
+    { id:26, type:"expense", category:"Otros gastos",     amount:84,   date:"2026-05-16", note:"Joyería regalo Mile (Klarna)" },
+    { id:27, type:"expense", category:"Entretenimiento",  amount:10,   date:"2026-05-20", note:"Birras cumple Maldo" },
+    { id:28, type:"expense", category:"Otros gastos",     amount:35,   date:"2026-05-13", note:"Balisa Félix (rotura)" },
+    { id:29, type:"expense", category:"Otros gastos",     amount:124,  date:"2026-05-15", note:"Pérdida BingX trading" },
+    { id:30, type:"expense", category:"Revolut/Bancario", amount:33,   date:"2026-05-31", note:"Gastos Revolut varios" },
+    { id:31, type:"expense", category:"Otros gastos",     amount:24,  date:"2026-05-17", note:"Auriculares ($40.000 ARS)" },
+    { id:32, type:"expense", category:"Otros gastos",     amount:21,  date:"2026-05-17", note:"Regalos y alfajores ($35.400 ARS)" },
+    { id:33, type:"expense", category:"Alimentación",     amount:41,  date:"2026-05-17", note:"Desayuno en familia Living ($70.000 ARS)" },
+    { id:34, type:"expense", category:"Alimentación",     amount:10,  date:"2026-05-16", note:"Almacén · cena ($17.000 ARS)" },
+    { id:35, type:"expense", category:"Alimentación",     amount:21,  date:"2026-05-16", note:"Carrefour ($35.075 ARS)" },
+    { id:36, type:"expense", category:"Transporte",       amount:6,   date:"2026-05-16", note:"Facturas ($9.600 ARS)" },
+    { id:37, type:"expense", category:"Ropa",             amount:26,  date:"2026-05-16", note:"Camisetas regalo Prani y Lucas ($44.700 ARS)" },
+    { id:38, type:"expense", category:"Ropa",             amount:30,  date:"2026-05-16", note:"Flandria shop ($51.000 ARS)" },
+    { id:39, type:"expense", category:"Familia",          amount:18,  date:"2026-05-15", note:"Rocío ($30.000 ARS)" },
+    { id:40, type:"expense", category:"Alimentación",     amount:4,   date:"2026-05-15", note:"Almacén ($7.000 ARS)" },
+    { id:41, type:"expense", category:"Transporte",       amount:7,   date:"2026-05-15", note:"Facturas viaje Tigre ($11.200 ARS)" },
+    { id:42, type:"expense", category:"Alimentación",     amount:26,  date:"2026-05-15", note:"Almuerzo con Rocío · Amazon ($43.500 ARS)" },
+    { id:43, type:"expense", category:"Alimentación",     amount:8,   date:"2026-05-15", note:"Alfajores ($13.650 ARS)" },
+    { id:44, type:"expense", category:"Transporte",       amount:2,   date:"2026-05-15", note:"Facturas ($3.000 ARS)" },
+    { id:45, type:"expense", category:"Alimentación",     amount:7,   date:"2026-05-15", note:"Almacén ($12.100 ARS)" },
+    { id:46, type:"expense", category:"Alimentación",     amount:15,  date:"2026-05-15", note:"Desayuno con Rocío ($26.100 ARS)" },
+    { id:47, type:"expense", category:"Servicios",        amount:1,   date:"2026-05-15", note:"Internet Telecentro ($2.150 ARS)" },
+    { id:48, type:"expense", category:"Salud",            amount:28,  date:"2026-05-14", note:"Mariano · psicólogo ($47.000 ARS)" },
+    { id:49, type:"expense", category:"Salud",            amount:37,  date:"2026-05-14", note:"Farmacia · medicamentos ($63.320 ARS)" },
+    { id:50, type:"expense", category:"Alimentación",     amount:13,  date:"2026-05-14", note:"Almacén · milanesas ($21.300 ARS)" },
+    { id:51, type:"expense", category:"Alimentación",     amount:6,   date:"2026-05-13", note:"Almacén · almuerzo con papá ($10.000 ARS)" },
+    { id:52, type:"expense", category:"Alimentación",     amount:4,   date:"2026-05-13", note:"Nuevo Gusto · Coca-Cola con papá ($7.200 ARS)" },
+    { id:53, type:"expense", category:"Familia",          amount:12,  date:"2026-05-12", note:"A papá ($20.000 ARS)" },
+    { id:54, type:"expense", category:"Alimentación",     amount:9,   date:"2026-05-13", note:"El chino · cena con mamá y Tomás ($15.580 ARS)" },
+    { id:55, type:"expense", category:"Alimentación",     amount:12,  date:"2026-05-13", note:"Panadería El Trébol · almuerzo con papá ($21.000 ARS)" },
+    { id:56, type:"expense", category:"Alimentación",     amount:3,   date:"2026-05-13", note:"Helado con papá ($5.500 ARS)" },
+    { id:57, type:"expense", category:"Alimentación",     amount:5,   date:"2026-05-12", note:"Almacén ($8.500 ARS)" },
+    { id:58, type:"expense", category:"Alimentación",     amount:7,   date:"2026-05-12", note:"Almacén ($12.000 ARS)" },
+    { id:59, type:"expense", category:"Alimentación",     amount:41,  date:"2026-05-15", note:"Mirasoles · cena en familia ($70.000 ARS)" },
+    // --- Revolut desde 10/05 ---
+    { id:60,  type:"expense", category:"Deudas/Cuotas",    amount:13.03, date:"2026-05-13", note:"Klarna · cuota" },
+    { id:61,  type:"expense", category:"Deudas/Cuotas",    amount:2.21,  date:"2026-05-15", note:"Klarna · cuota" },
+    { id:62,  type:"expense", category:"Otros gastos",     amount:10,    date:"2026-05-17", note:"Transferencia a María A. Begliomini" },
+    { id:63,  type:"expense", category:"Revolut/Bancario", amount:15.99, date:"2026-05-18", note:"Tarifa plan Metal Revolut" },
+    { id:64,  type:"expense", category:"Entretenimiento",  amount:19.09, date:"2026-05-18", note:"Netflix (facturado en ARS)" },
+    { id:65,  type:"expense", category:"Alimentación",     amount:7.42,  date:"2026-05-18", note:"McDonald's Ezeiza ($11.900 ARS)" },
+    { id:66,  type:"expense", category:"Transporte",       amount:12.50, date:"2026-05-19", note:"Aircoach · Dublin" },
+    { id:67,  type:"expense", category:"Servicios",        amount:12.99, date:"2026-05-19", note:"48months · plan móvil IE" },
+    { id:68,  type:"expense", category:"Salud",            amount:4.65,  date:"2026-05-19", note:"Fengo Beauty" },
+    { id:69,  type:"expense", category:"Servicios",        amount:24.45, date:"2026-05-19", note:"UK Visas and Immigration" },
+    { id:70,  type:"expense", category:"Transporte",       amount:11.22, date:"2026-05-19", note:"German Parejas · Ezeiza ($18.000 ARS)" },
+    { id:71,  type:"expense", category:"Deudas/Cuotas",   amount:910,   date:"2026-05-19", note:"Devolver a Mile" },
+    { id:72,  type:"expense", category:"Deudas/Cuotas",   amount:10,    date:"2026-05-19", note:"Transferencia a Mile" },
+    { id:73,  type:"expense", category:"Deudas/Cuotas",   amount:9.73,  date:"2026-05-20", note:"Klarna · cuota Tesco" },
+    { id:74,  type:"expense", category:"Otros gastos",     amount:7,     date:"2026-05-20", note:"Transferencia a Odalys G." },
+    { id:75,  type:"expense", category:"Otros gastos",     amount:10,    date:"2026-05-21", note:"Transferencia a María Martin" },
+    { id:76,  type:"expense", category:"Alimentación",     amount:6.30,  date:"2026-05-21", note:"Everyday Dublin" },
+    { id:77,  type:"expense", category:"Deudas/Cuotas",   amount:5.22,  date:"2026-05-22", note:"Klarna · cuota" },
+    { id:78,  type:"expense", category:"Deudas/Cuotas",   amount:68.71, date:"2026-05-22", note:"Bankinter" },
+    { id:79,  type:"expense", category:"Alimentación",     amount:2.05,  date:"2026-05-22", note:"Everyday App" },
+    { id:80,  type:"expense", category:"Alimentación",     amount:10.34, date:"2026-05-22", note:"Tesco" },
+    { id:81,  type:"expense", category:"Alimentación",     amount:0.99,  date:"2026-05-22", note:"Tesco" },
+    { id:82,  type:"expense", category:"Ropa",             amount:70,    date:"2026-05-22", note:"Klarna · Life Style Sports" },
+    { id:83,  type:"expense", category:"Deudas/Cuotas",   amount:4,     date:"2026-05-22", note:"Klarna · cuota" },
+    { id:84,  type:"expense", category:"Deudas/Cuotas",   amount:1,     date:"2026-05-22", note:"Klarna · cuota" },
+    { id:85,  type:"expense", category:"Deudas/Cuotas",   amount:5.87,  date:"2026-05-22", note:"Klarna · cuota Tesco" },
+    { id:86,  type:"expense", category:"Alimentación",     amount:10,    date:"2026-05-22", note:"Tesco (pendiente)" },
+    { id:87,  type:"expense", category:"Alimentación",     amount:1.60,  date:"2026-05-22", note:"Everyday App (pendiente)" },
+    { id:88,  type:"expense", category:"Entretenimiento",  amount:4.20,  date:"2026-05-22", note:"Twelve" },
+    { id:89,  type:"expense", category:"Entretenimiento",  amount:1.35,  date:"2026-05-22", note:"Twelve" },
+    { id:90,  type:"expense", category:"Servicios",        amount:10.65, date:"2026-05-22", note:"Midjourney" },
+    { id:91,  type:"expense", category:"Deudas/Cuotas",   amount:100,   date:"2026-05-19", note:"€100 cash al padre de Mile (devolver préstamo)" },
+    { id:92,  type:"expense", category:"Deudas/Cuotas",   amount:405,   date:"2026-05-23", note:"Germán · $650.000 ARS via Lemon Cash" },
+    // --- Junio 2026 ---
+    { id:93,  type:"expense", category:"Servicios",       amount:10.77,  date:"2026-06-01", note:"Google Workspace" },
+    { id:94,  type:"expense", category:"Deudas/Cuotas",   amount:41.34,  date:"2026-06-01", note:"Klarna · cuota" },
+    { id:95,  type:"expense", category:"Ropa",            amount:84,     date:"2026-06-02", note:"Alhajastore · joyería" },
+    { id:96,  type:"expense", category:"Ropa",            amount:30.28,  date:"2026-06-02", note:"Life Style Sports" },
+    { id:97,  type:"expense", category:"Otros gastos",    amount:6.99,   date:"2026-06-03", note:"Amazon" },
+    { id:98,  type:"expense", category:"Alimentación",    amount:3.89,   date:"2026-06-03", note:"Everyday Dublin x2" },
+    { id:99,  type:"expense", category:"Alimentación",    amount:6.35,   date:"2026-06-03", note:"Tesco" },
+    { id:100, type:"expense", category:"Ropa",            amount:37.99,  date:"2026-06-04", note:"Classic Footb" },
+    { id:101, type:"expense", category:"Servicios",       amount:17.28,  date:"2026-06-04", note:"Claude.ai" },
+    { id:102, type:"expense", category:"Deudas/Cuotas",   amount:13.67,  date:"2026-06-04", note:"Klarna · cuota" },
+    { id:103, type:"expense", category:"Vivienda",        amount:608,    date:"2026-06-04", note:"Alquiler junio" },
+    { id:104, type:"expense", category:"Deudas/Cuotas",   amount:5.84,   date:"2026-06-06", note:"Klarna · cuota" },
+    { id:105, type:"expense", category:"Entretenimiento", amount:10.60,  date:"2026-06-06", note:"Orlagh House" },
+    { id:106, type:"expense", category:"Transporte",      amount:5,      date:"2026-06-06", note:"Transport for Ireland TFI" },
+    { id:107, type:"expense", category:"Deudas/Cuotas",   amount:134.04, date:"2026-06-07", note:"Revolut · cuota día 7" },
+    { id:108, type:"expense", category:"Deudas/Cuotas",   amount:53.36,  date:"2026-06-08", note:"Klarna · cuota" },
+    { id:109, type:"expense", category:"Deudas/Cuotas",   amount:2.15,   date:"2026-06-08", note:"Klarna · cuota" },
+    { id:110, type:"expense", category:"Alimentación",    amount:76.80,  date:"2026-06-02", note:"Tesco x2 (AIB)" },
+    { id:111, type:"expense", category:"Servicios",       amount:106.04, date:"2026-06-02", note:"Yuno Energy · luz/gas" },
+    { id:112, type:"expense", category:"Alimentación",    amount:2.66,   date:"2026-06-02", note:"Everyday App (AIB)" },
+    { id:113, type:"expense", category:"Entretenimiento", amount:15.20,  date:"2026-06-03", note:"The Merrion Inn" },
+    { id:114, type:"expense", category:"Deudas/Cuotas",   amount:150,    date:"2026-06-04", note:"Klarna · top up AIB" },
+    { id:115, type:"expense", category:"Deudas/Cuotas",   amount:790,    date:"2026-06-04", note:"ZPAY · depósito alquiler devuelto a Jesús" },
+    { id:116, type:"expense", category:"Alimentación",    amount:8,      date:"2026-06-05", note:"Everyday App x2 (AIB)" },
+    { id:117, type:"expense", category:"Entretenimiento", amount:33.70,  date:"2026-06-05", note:"The 51 Bar x2" },
+    { id:118, type:"expense", category:"Entretenimiento", amount:12.99,  date:"2026-06-05", note:"Spotify" },
+    { id:119, type:"expense", category:"Salud",           amount:28,     date:"2026-05-29", note:"Mariano · psicólogo ($47.000 ARS)" },
+    { id:120, type:"expense", category:"Familia",         amount:29,     date:"2026-05-30", note:"Mamá ($50.000 ARS)" },
+    { id:121, type:"expense", category:"Salud",           amount:28,     date:"2026-06-04", note:"Mariano · psicólogo ($47.000 ARS)" },
+  ],
+  debts: [
+    { id:1, name:"Préstamo AIB",          total:12055.09, paid:0, interest:0, due:"2026-06-01", monthlyPayment:312.16, currency:"EUR", note:"Cuota mensual €312,16" },
+    { id:2, name:"Revolut — cuota día 27",total:5829.26,  paid:0, interest:0, due:"2026-05-27", monthlyPayment:180.76, currency:"EUR", note:"Cuota mensual €180,76 · día 27" },
+    { id:3, name:"Revolut — cuota día 7", total:6152.12,  paid:0, interest:0, due:"2026-06-07", monthlyPayment:134.04, currency:"EUR", note:"Cuota mensual €134,04 · día 7" },
+    { id:4, name:"Préstamo Mile",         total:1000,     paid:1000, interest:0, due:"2026-12-31", monthlyPayment:0,      currency:"EUR", note:"Saldado: €920 Revolut + €100 cash a su padre" },
+    { id:5, name:"Préstamo Germán",       total:1177,     paid:383, interest:0, due:"2026-12-31", monthlyPayment:0,      currency:"ARS", arsTotal:1350200, note:"Saldo: $1.350.200 ARS · pagados $650.000 ARS via Lemon Cash" },
+    { id:6, name:"Préstamo Jesús",        total:800,      paid:790, interest:0, due:"2026-05-30", monthlyPayment:0,      currency:"EUR", note:"€790 devuelto vía ZPAY (depósito alquiler) · saldo €10" },
+    { id:7, name:"Préstamo Franco",       total:500,      paid:0, interest:0, due:"2026-12-31", monthlyPayment:0,      currency:"EUR", note:"Sin cuota fija" },
+    { id:8, name:"Préstamo Elvira",       total:500,      paid:0, interest:0, due:"2026-12-31", monthlyPayment:0,      currency:"EUR", note:"Sin cuota fija" },
+    { id:9, name:"Revolut Personal Loan", total:3000,     paid:0, interest:0, due:"2027-06-01", monthlyPayment:0,      currency:"EUR", note:"Préstamo personal Revolut · 01/06/2026 · cuota mensual a confirmar" },
+  ],
+  goals: [
+    { id:1, name:"Fondo de emergencia", target:3000, saved:548, deadline:"2026-12-31", icon:"🛡️" },
+    { id:2, name:"Devolver a Mile",     target:1000, saved:0,   deadline:"2026-12-31", icon:"🤝" },
+    { id:3, name:"Devolver a Germán",   target:1177, saved:0,   deadline:"2026-12-31", icon:"🤝" },
+  ],
+  budget: {
+    Vivienda:608, Alimentación:200, Transporte:60, Familia:200,
+    Entretenimiento:50, Ropa:100, Salud:30, Servicios:50,
+    "Deudas/Cuotas":650, Viajes:0, "Revolut/Bancario":30, "Otros gastos":50,
+  },
+  balances: {
+    savings: 600,
+    xrp: 1000,
+    lemonARS: 66105,
+    sol: 3.33,
+    solEUR: 58.52,
+    klarna: 150,
+    arsRate: 1700,
+  },
+};
+
+const STORAGE_KEY = "finanzIA_data";
+
+function loadData() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (!saved) return DEFAULT_DATA;
+    const parsed = JSON.parse(saved);
+    const savedTxIds = new Set(parsed.transactions.map(t => t.id));
+    const newTx = DEFAULT_DATA.transactions.filter(t => !savedTxIds.has(t.id));
+    const savedDebtIds = new Set(parsed.debts.map(d => d.id));
+    const newDebts = DEFAULT_DATA.debts.filter(d => !savedDebtIds.has(d.id));
+    return {
+      ...parsed,
+      transactions: [...parsed.transactions, ...newTx],
+      debts: [...parsed.debts, ...newDebts],
+      balances: { ...DEFAULT_DATA.balances, ...(parsed.balances || {}) },
+    };
+  } catch { return DEFAULT_DATA; }
+}
+
+function App() {
+  const [tab, setTab]       = useState("dashboard");
+  const [data, setData]     = useState(loadData);
+  const [modal, setModal]   = useState(null);
+  const [form, setForm]     = useState({});
+  const [filter, setFilter] = useState("all");
+  const [month, setMonth]   = useState(() => new Date().toISOString().slice(0,7));
+
+  useEffect(() => {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); } catch {}
+  }, [data]);
+
+  const stats = useMemo(() => {
+    const monthTx = data.transactions.filter((t) => t.date.startsWith(month));
+    const income   = monthTx.filter((t) => t.type==="income").reduce((s,t)=>s+t.amount,0);
+    const expenses = monthTx.filter((t) => t.type==="expense").reduce((s,t)=>s+t.amount,0);
+    const balance  = income - expenses;
+    const totalDebt = data.debts.reduce((s,d)=>s+Math.max(0,d.total-d.paid),0);
+    const expByCategory = {};
+    monthTx.filter((t)=>t.type==="expense").forEach((t)=>{ expByCategory[t.category]=(expByCategory[t.category]||0)+t.amount; });
+    return { income, expenses, balance, totalDebt, expByCategory, monthTx };
+  }, [data, month]);
+
+  const totalMonthlyDebt = data.debts.filter(d=>d.monthlyPayment>0).reduce((s,d)=>s+d.monthlyPayment,0);
+
+  const healthScore = useMemo(() => {
+    let score = 100;
+    if (stats.balance < 0) score -= 25;
+    const realIncome = 2650;
+    const debtRatio  = totalMonthlyDebt / realIncome;
+    if (debtRatio > 0.4) score -= 25;
+    else if (debtRatio > 0.25) score -= 15;
+    const totalDebtVsIncome = stats.totalDebt / (realIncome * 12);
+    if (totalDebtVsIncome > 1) score -= 15;
+    return Math.max(0, Math.min(100, score));
+  }, [stats, totalMonthlyDebt]);
+
+  const patrimony = useMemo(() => {
+    const bal      = data.balances || {};
+    const arsRate  = bal.arsRate   || 1700;
+    const savingsEUR = bal.savings || 0;
+    const xrpEUR     = bal.xrp    || 0;
+    const solEUR     = (bal.solEUR || 0) * (bal.sol || 0);
+    const lemonEUR   = Math.round((bal.lemonARS || 0) / arsRate);
+    const klarnaEUR  = bal.klarna  || 0;
+    const total = savingsEUR + xrpEUR + solEUR + lemonEUR + klarnaEUR;
+    return { savingsEUR, xrpEUR, solEUR, lemonEUR, klarnaEUR, total,
+             sol: bal.sol || 0, lemonARS: bal.lemonARS || 0 };
+  }, [data.balances]);
+
+  const scoreColor = healthScore>=70?"#4ade80":healthScore>=40?"#fbbf24":"#f87171";
+  const scoreLabel = healthScore>=70?"Saludable":healthScore>=40?"Atención":"Crítico";
+
+  const openModal = (type, item=null) => {
+    setModal(type);
+    if (item) setForm({...item});
+    else if (type==="transaction") setForm({type:"expense",category:"Alimentación",amount:"",date:today(),note:""});
+    else if (type==="debt")        setForm({name:"",total:"",paid:"0",interest:"0",monthlyPayment:"0",due:today(),note:"",currency:"EUR"});
+    else if (type==="goal")        setForm({name:"",target:"",saved:"0",deadline:today(),icon:"🎯"});
+  };
+
+  const saveTransaction = () => {
+    if (!form.amount || !form.category) return;
+    const tx = {...form, amount:parseFloat(form.amount), id:form.id||Date.now()};
+    setData((d)=>({...d, transactions:form.id?d.transactions.map((t)=>t.id===tx.id?tx:t):[...d.transactions,tx]}));
+    setModal(null);
+  };
+  const saveDebt = () => {
+    if (!form.name || !form.total) return;
+    const debt = {...form, total:parseFloat(form.total), paid:parseFloat(form.paid||0), interest:parseFloat(form.interest||0), monthlyPayment:parseFloat(form.monthlyPayment||0), id:form.id||Date.now()};
+    setData((d)=>({...d, debts:form.id?d.debts.map((x)=>x.id===debt.id?debt:x):[...d.debts,debt]}));
+    setModal(null);
+  };
+  const saveGoal = () => {
+    if (!form.name || !form.target) return;
+    const goal = {...form, target:parseFloat(form.target), saved:parseFloat(form.saved||0), id:form.id||Date.now()};
+    setData((d)=>({...d, goals:form.id?d.goals.map((x)=>x.id===goal.id?goal:x):[...d.goals,goal]}));
+    setModal(null);
+  };
+  const deleteItem  = (type, id) => setData((d)=>({...d, [type]:d[type].filter((x)=>x.id!==id)}));
+  const saveBudget  = (cat, val) => setData((d)=>({...d, budget:{...d.budget,[cat]:parseFloat(val)||0}}));
+  const filteredTx  = data.transactions.filter((t)=>filter==="all"||t.type===filter).sort((a,b)=>b.date.localeCompare(a.date));
+
+  const resetData = () => {
+    if (confirm("¿Restaurar todos los datos al estado inicial? Esto borrará los cambios guardados.")) {
+      setData(DEFAULT_DATA);
+    }
+  };
+
+  return (
+    <div style={{fontFamily:"'DM Mono',monospace",background:"#0a0a0f",minHeight:"100vh",color:"#e2e8f0"}}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Syne:wght@400;600;700;800&display=swap');
+        *{box-sizing:border-box;margin:0;padding:0}
+        ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#0a0a0f}::-webkit-scrollbar-thumb{background:#2a2a3a;border-radius:2px}
+        .card{background:#111118;border:1px solid #1e1e2e;border-radius:16px;padding:20px;transition:border-color .2s}
+        .card:hover{border-color:#2e2e4e}
+        .btn{padding:10px 18px;border-radius:10px;border:none;cursor:pointer;font-family:inherit;font-size:13px;font-weight:500;transition:all .15s}
+        .btn-primary{background:#6366f1;color:white}.btn-primary:hover{background:#818cf8;transform:translateY(-1px)}
+        .btn-ghost{background:transparent;color:#94a3b8;border:1px solid #1e1e2e}.btn-ghost:hover{border-color:#6366f1;color:#e2e8f0}
+        .btn-danger{background:transparent;color:#f87171;border:1px solid #2a1a1a;font-size:11px;padding:4px 10px;border-radius:6px}.btn-danger:hover{background:#f8717122}
+        .input{background:#0d0d15;border:1px solid #1e1e2e;color:#e2e8f0;padding:10px 12px;border-radius:10px;font-family:inherit;font-size:13px;width:100%;outline:none}
+        .input:focus{border-color:#6366f1}
+        select.input option{background:#111118}
+        .tab{padding:10px 16px;background:transparent;border:none;color:#64748b;cursor:pointer;font-family:'Syne',sans-serif;font-size:12px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;border-bottom:2px solid transparent;transition:all .15s;white-space:nowrap}
+        .tab.active{color:#a5b4fc;border-bottom-color:#6366f1}
+        .tab:hover:not(.active){color:#94a3b8}
+        .progress-bar{height:6px;background:#1e1e2e;border-radius:3px;overflow:hidden}
+        .progress-fill{height:100%;border-radius:3px;transition:width .5s ease}
+        .overlay{position:fixed;inset:0;background:#000000cc;backdrop-filter:blur(4px);z-index:100;display:flex;align-items:center;justify-content:center;padding:20px}
+        .modal{background:#111118;border:1px solid #2e2e4e;border-radius:20px;padding:28px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto}
+        .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+        .label{font-size:11px;color:#64748b;text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px}
+        .tx-row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #0d0d15}
+        .tx-row:last-child{border-bottom:none}
+        .badge{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        .fade-in{animation:fadeIn .3s ease forwards}
+        @media(max-width:600px){.grid2{grid-template-columns:1fr}}
+        input[type=range]{-webkit-appearance:none;width:100%;height:4px;border-radius:2px;outline:none;cursor:pointer;margin:4px 0}
+        input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;cursor:pointer;border:2px solid #0a0a0f}
+        /* Bottom nav */
+        .bottom-nav{position:fixed;bottom:0;left:0;right:0;background:#111118cc;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-top:1px solid #1e1e2e;display:flex;z-index:50;padding-bottom:env(safe-area-inset-bottom,0px)}
+        .bottom-tab{flex:1;background:transparent;border:none;color:#475569;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px 4px;gap:2px;font-family:'DM Mono',monospace;transition:all .15s;-webkit-tap-highlight-color:transparent}
+        .bottom-tab span.icon{font-size:20px;line-height:1}
+        .bottom-tab span.lbl{font-size:9px;letter-spacing:.04em;text-transform:uppercase}
+        .bottom-tab.active{color:#818cf8}
+        .bottom-tab.active span.icon{filter:drop-shadow(0 0 6px #6366f188)}
+        /* Desktop: hide bottom nav */
+        @media(min-width:641px){.bottom-nav{display:none!important}}
+        /* Mobile */
+        @media(max-width:640px){
+          .top-nav{display:none!important}
+          .page-wrap{padding:16px 14px 88px!important}
+          .grid2{grid-template-columns:1fr!important}
+          .modal{padding:20px 16px}
+          .header-wrap{padding:env(safe-area-inset-top,16px) 16px 0!important;padding-top:calc(env(safe-area-inset-top,0px) + 16px)!important}
+        }
+        /* Card shine */
+        .card{position:relative;overflow:hidden}
+        .card::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.03) 0%,transparent 60%);pointer-events:none}
+        /* Amount font */
+        .amount{font-size:20px;font-weight:700;font-family:'Syne',sans-serif;margin-top:4px}
+      `}</style>
+
+      <div className="header-wrap" style={{padding:"20px 24px 0",maxWidth:900,margin:"0 auto"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:20}}>
+          <div>
+            <div style={{fontFamily:"'Syne',sans-serif",fontSize:22,fontWeight:800,letterSpacing:"-0.02em"}}>
+              finanz<span style={{color:"#6366f1"}}>IA</span>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:8,marginTop:4}}>
+              <input type="month" value={month} onChange={(e)=>setMonth(e.target.value)}
+                style={{background:"transparent",border:"1px solid #1e1e2e",color:"#475569",borderRadius:6,padding:"2px 8px",fontSize:11,fontFamily:"inherit",outline:"none",cursor:"pointer"}} />
+              <span style={{fontSize:11,color:"#475569"}}>· Dublin 🇮🇪</span>
+            </div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <div style={{fontSize:10,color:"#475569",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:4}}>Salud financiera</div>
+            <div style={{display:"flex",alignItems:"center",gap:8,justifyContent:"flex-end"}}>
+              <div style={{fontSize:24,fontWeight:700,color:scoreColor,fontFamily:"'Syne',sans-serif"}}>{healthScore}</div>
+              <div style={{fontSize:11,color:scoreColor,background:scoreColor+"22",padding:"3px 8px",borderRadius:6}}>{scoreLabel}</div>
+            </div>
+          </div>
+        </div>
+        <div className="top-nav" style={{borderBottom:"1px solid #1e1e2e",display:"flex",overflowX:"auto"}}>
+          {[["dashboard","📊 Resumen"],["transactions","💳 Movimientos"],["debts","⊖ Deudas"],["goals","◎ Metas"],["budget","📋 Presupuesto"],["junio","🗓️ Junio"]].map(([id,label])=>(
+            <button key={id} className={`tab ${tab===id?"active":""}`} onClick={()=>setTab(id)}>{label}</button>
+          ))}
+        </div>
+      </div>
+
+      <div style={{padding:"24px",maxWidth:900,margin:"0 auto"}} className="fade-in page-wrap">
+
+        {tab==="dashboard" && (
+          <div style={{display:"flex",flexDirection:"column",gap:14}}>
+
+            {/* ── PATRIMONIO HERO ── */}
+            <div style={{background:"linear-gradient(140deg,#131330 0%,#0c1628 100%)",border:"1px solid #2a3a5e",borderRadius:22,padding:"22px 20px",position:"relative",overflow:"hidden"}}>
+              <div style={{position:"absolute",top:-60,right:-30,width:180,height:180,background:"#6366f11a",borderRadius:"50%",filter:"blur(50px)",pointerEvents:"none"}}/>
+              <div style={{position:"absolute",bottom:-50,left:-10,width:140,height:140,background:"#a5b4fc12",borderRadius:"50%",filter:"blur(40px)",pointerEvents:"none"}}/>
+              <div style={{fontSize:11,color:"#475569",textTransform:"uppercase",letterSpacing:".12em",marginBottom:8}}>💎 Patrimonio total</div>
+              <div style={{display:"flex",alignItems:"flex-end",gap:8,marginBottom:6}}>
+                <div style={{fontSize:40,fontWeight:800,fontFamily:"'Syne',sans-serif",color:"#f1f5f9",lineHeight:1,letterSpacing:"-1px"}}>{fmt(patrimony.total)}</div>
+                {!patrimony.solEUR&&patrimony.sol>0&&<div style={{fontSize:12,color:"#334155",paddingBottom:6}}>+ SOL</div>}
+              </div>
+              <div style={{fontSize:12,color:stats.balance>=0?"#4ade80":"#f87171",marginBottom:20,display:"flex",alignItems:"center",gap:4}}>
+                <span>{stats.balance>=0?"▲":"▼"}</span>
+                <span>{fmt(Math.abs(stats.balance))} balance este mes</span>
+              </div>
+              <div style={{borderTop:"1px solid #1a2a40",paddingTop:16,display:"flex",flexDirection:"column",gap:11}}>
+                {[
+                  {icon:"💰",label:"Ahorro",  eur:patrimony.savingsEUR, native:null,                           color:"#a5b4fc"},
+                  {icon:"🪙",label:"XRP",     eur:patrimony.xrpEUR,     native:null,                           color:"#c084fc"},
+                  {icon:"🟢",label:"Solana",  eur:patrimony.solEUR,     native:`${patrimony.sol.toFixed(2)} SOL`, color:"#14f195",pending:!patrimony.solEUR&&patrimony.sol>0},
+                  {icon:"🍋",label:"Lemon",   eur:patrimony.lemonEUR,   native:fmtARS(patrimony.lemonARS),     color:"#fbbf24"},
+                  {icon:"🏷️",label:"Klarna",  eur:patrimony.klarnaEUR,  native:null,                           color:"#60a5fa"},
+                ].map(a=>{
+                  const pct=patrimony.total>0&&!a.pending?Math.max(2,(a.eur/patrimony.total)*100):0;
+                  return(
+                    <div key={a.label}>
+                      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+                        <span style={{fontSize:13,color:"#94a3b8"}}>{a.icon} {a.label}</span>
+                        {a.pending
+                          ?<span style={{fontSize:11,color:"#334155"}}>{a.native}</span>
+                          :<span style={{fontSize:13,fontWeight:600,color:a.color}}>
+                            {fmt(a.eur)}{a.native&&<span style={{fontSize:10,color:"#475569",marginLeft:5}}>{a.native}</span>}
+                          </span>
+                        }
+                      </div>
+                      <div style={{height:3,background:"#1a2a40",borderRadius:3}}>
+                        <div style={{height:"100%",width:pct+"%",background:`linear-gradient(90deg,${a.color}99,${a.color}cc)`,borderRadius:3,transition:"width .9s ease"}}/>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ── STATS MES ── */}
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div className="card" style={{borderColor:"#4ade8033",background:"#4ade8008",padding:"14px 16px"}}>
+                <div className="label">↑ Ingresos</div>
+                <div style={{fontSize:26,fontWeight:800,color:"#4ade80",fontFamily:"'Syne',sans-serif",marginTop:4,letterSpacing:"-0.5px"}}>{fmt(stats.income)}</div>
+              </div>
+              <div className="card" style={{borderColor:"#f8717133",background:"#f8717108",padding:"14px 16px"}}>
+                <div className="label">↓ Gastos</div>
+                <div style={{fontSize:26,fontWeight:800,color:"#f87171",fontFamily:"'Syne',sans-serif",marginTop:4,letterSpacing:"-0.5px"}}>{fmt(stats.expenses)}</div>
+              </div>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+              <div className="card" style={{padding:"14px 16px"}}>
+                <div className="label">⚖️ Balance</div>
+                <div style={{fontSize:22,fontWeight:700,color:stats.balance>=0?"#4ade80":"#f87171",fontFamily:"'Syne',sans-serif",marginTop:4}}>{fmt(stats.balance)}</div>
+              </div>
+              <div className="card" style={{borderColor:"#fb923c33",background:"#fb923c08",padding:"14px 16px"}}>
+                <div className="label">⊖ Deuda total</div>
+                <div style={{fontSize:20,fontWeight:700,color:"#fb923c",fontFamily:"'Syne',sans-serif",marginTop:4}}>{fmt(stats.totalDebt)}</div>
+                <div style={{fontSize:10,color:"#64748b",marginTop:3}}>{fmtDec(totalMonthlyDebt)}/mes</div>
+              </div>
+            </div>
+
+            {/* ── CUOTAS ── */}
+            <div style={{background:"#130d00",border:"1px solid #2e1e00",borderRadius:14,padding:"14px 16px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{display:"flex",gap:10,alignItems:"center"}}>
+                  <span style={{fontSize:20}}>📅</span>
+                  <div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontSize:13,fontWeight:700,color:"#fbbf24"}}>Cuotas fijas</div>
+                    <div style={{fontSize:10,color:"#64748b",marginTop:2}}>AIB €312 · Revolut ×2 €315</div>
+                  </div>
+                </div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:22,fontWeight:800,color:"#fbbf24",fontFamily:"'Syne',sans-serif"}}>{fmtDec(totalMonthlyDebt)}</div>
+                  <div style={{fontSize:10,color:"#64748b"}}>{((totalMonthlyDebt/2650)*100).toFixed(0)}% del sueldo</div>
+                </div>
+              </div>
+            </div>
+
+            <StaticTip stats={stats} healthScore={healthScore} totalMonthlyDebt={totalMonthlyDebt} />
+
+            <div className="card">
+              <div style={{fontFamily:"'Syne',sans-serif",fontSize:14,fontWeight:700,marginBottom:16,color:"#c7d2fe"}}>Gastos por categoría</div>
+              {Object.entries(stats.expByCategory).sort((a,b)=>b[1]-a[1]).map(([cat,amt])=>{
+                const budget=data.budget[cat]||0;
+                const pct=budget>0?Math.min(100,(amt/budget)*100):60;
+                const over=budget>0&&amt>budget;
+                return (
+                  <div key={cat} style={{marginBottom:14}}>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:6,fontSize:13}}>
+                      <span>{ICONS[cat]||"•"} {cat}</span>
+                      <span style={{color:over?"#f87171":"#94a3b8"}}>{fmt(amt)}{budget>0&&<span style={{color:"#475569"}}> / {fmt(budget)}</span>}</span>
+                    </div>
+                    <div className="progress-bar"><div className="progress-fill" style={{width:pct+"%",background:over?"#f87171":"#6366f1"}} /></div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="card">
+              <div style={{fontFamily:"'Syne',sans-serif",fontSize:14,fontWeight:700,marginBottom:12,color:"#c7d2fe"}}>Últimos movimientos</div>
+              {[...data.transactions].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,6).map((t)=><TxRow key={t.id} t={t} />)}
+            </div>
+
+            <div style={{textAlign:"center",paddingTop:4}}>
+              <button onClick={resetData} style={{background:"transparent",border:"none",color:"#334155",fontSize:11,cursor:"pointer",fontFamily:"inherit"}}>
+                ↺ Restaurar datos iniciales
+              </button>
+            </div>
+          </div>
+        )}
+
+        {tab==="transactions" && (
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
+              <div style={{display:"flex",gap:8}}>
+                {[["all","Todos"],["income","Ingresos"],["expense","Gastos"]].map(([v,l])=>(
+                  <button key={v} onClick={()=>setFilter(v)}
+                    style={{padding:"6px 14px",fontSize:12,background:filter===v?"#6366f1":"transparent",color:filter===v?"white":"#64748b",border:`1px solid ${filter===v?"#6366f1":"#1e1e2e"}`,borderRadius:8,cursor:"pointer",fontFamily:"inherit"}}>{l}</button>
+                ))}
+              </div>
+              <button className="btn btn-primary" onClick={()=>openModal("transaction")}>+ Agregar</button>
+            </div>
+            <div className="card">
+              {filteredTx.length===0 && <div style={{textAlign:"center",color:"#334155",fontSize:13,padding:"20px 0"}}>Sin movimientos para este período</div>}
+              {filteredTx.map((t)=>(
+                <div key={t.id} className="tx-row">
+                  <div className="badge" style={{background:t.type==="income"?"#4ade8011":"#f8717111"}}>{ICONS[t.category]||"•"}</div>
+                  <div style={{flex:1}}>
+                    <div style={{fontSize:13,fontWeight:500}}>{t.category}</div>
+                    <div style={{fontSize:11,color:"#475569"}}>{t.note} · {t.date}</div>
+                  </div>
+                  <div style={{fontWeight:600,color:t.type==="income"?"#4ade80":"#f87171",fontFamily:"'Syne',sans-serif",marginRight:8}}>
+                    {t.type==="income"?"+":"-"}{fmt(t.amount)}
+                  </div>
+                  <div style={{display:"flex",gap:6}}>
+                    <button className="btn btn-ghost" style={{fontSize:11,padding:"4px 10px"}} onClick={()=>openModal("transaction",t)}>✎</button>
+                    <button className="btn btn-danger" onClick={()=>deleteItem("transactions",t.id)}>✕</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {tab==="debts" && (
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:"#c7d2fe"}}>Mis deudas</div>
+              <button className="btn btn-primary" onClick={()=>openModal("debt")}>+ Agregar</button>
+            </div>
+            {data.debts.map((d)=>{
+              const remaining=Math.max(0,d.total-d.paid);
+              const pct=d.total>0?Math.min(100,(d.paid/d.total)*100):0;
+              const isARS=d.currency==="ARS";
+              return (
+                <div key={d.id} className="card" style={{marginBottom:12}}>
+                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+                    <div>
+                      <div style={{fontWeight:600,fontFamily:"'Syne',sans-serif",fontSize:14}}>{d.name}</div>
+                      <div style={{fontSize:11,color:"#475569",marginTop:2}}>{d.note}</div>
+                    </div>
+                    <div style={{textAlign:"right"}}>
+                      {isARS ? (
+                        <>
+                          <div style={{color:"#fb923c",fontWeight:700,fontFamily:"'Syne',sans-serif"}}>{fmtARS(d.arsTotal)}</div>
+                          <div style={{fontSize:11,color:"#475569"}}>≈ {fmt(d.total)} EUR</div>
+                        </>
+                      ) : (
+                        <>
+                          <div style={{color:remaining>0?"#fb923c":"#4ade80",fontWeight:700,fontFamily:"'Syne',sans-serif"}}>{fmtDec(remaining)}</div>
+                          <div style={{fontSize:11,color:"#475569"}}>de {fmtDec(d.total)}</div>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  {d.monthlyPayment>0 && (
+                    <div style={{background:"#fbbf2411",border:"1px solid #fbbf2422",borderRadius:8,padding:"6px 10px",marginBottom:10,display:"flex",justifyContent:"space-between",fontSize:12}}>
+                      <span style={{color:"#64748b"}}>Cuota mensual</span>
+                      <span style={{color:"#fbbf24",fontWeight:600}}>{fmtDec(d.monthlyPayment)}</span>
+                    </div>
+                  )}
+                  <div className="progress-bar" style={{marginBottom:10}}>
+                    <div className="progress-fill" style={{width:pct+"%",background:remaining<=0?"#4ade80":"linear-gradient(90deg,#fb923c,#fbbf24)"}} />
+                  </div>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                    <div style={{fontSize:11,color:remaining<=0?"#4ade80":"#64748b"}}>
+                      {remaining<=0?"✓ Pagada":pct>0?`${pct.toFixed(0)}% pagado`:"Sin pagos registrados"}
+                    </div>
+                    <div style={{display:"flex",gap:8}}>
+                      <button className="btn btn-ghost" style={{fontSize:11,padding:"4px 12px"}} onClick={()=>openModal("debt",d)}>Editar</button>
+                      <button className="btn btn-danger" onClick={()=>deleteItem("debts",d.id)}>Eliminar</button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+            <div className="card" style={{background:"#fb923c11",borderColor:"#fb923c33"}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+                <span style={{fontSize:13,color:"#94a3b8"}}>Total deuda en EUR</span>
+                <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,color:"#fb923c",fontSize:18}}>{fmtDec(data.debts.filter(d=>d.currency!=="ARS").reduce((s,d)=>s+Math.max(0,d.total-d.paid),0))}</span>
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}>
+                <span style={{fontSize:13,color:"#94a3b8"}}>Deuda en ARS</span>
+                <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,color:"#fb923c",fontSize:14}}>{fmtARS(2000200)} ≈ {fmt(1177)}</span>
+              </div>
+              <div style={{borderTop:"1px solid #3a2000",paddingTop:10,display:"flex",justifyContent:"space-between"}}>
+                <span style={{fontSize:13,color:"#94a3b8"}}>Cuota fija mensual total</span>
+                <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,color:"#fbbf24",fontSize:16}}>{fmtDec(totalMonthlyDebt)}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {tab==="goals" && (
+          <div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+              <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:"#c7d2fe"}}>Metas de ahorro</div>
+              <button className="btn btn-primary" onClick={()=>openModal("goal")}>+ Nueva meta</button>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(260px,1fr))",gap:12}}>
+              {data.goals.map((g)=>{
+                const pct=Math.min(100,(g.saved/g.target)*100);
+                const remaining=g.target-g.saved;
+                const daysLeft=Math.ceil((new Date(g.deadline)-new Date())/86400000);
+                const monthly=daysLeft>0?remaining/(daysLeft/30):0;
+                return (
+                  <div key={g.id} className="card">
+                    <div style={{fontSize:28,marginBottom:8}}>{g.icon}</div>
+                    <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,marginBottom:4}}>{g.name}</div>
+                    <div style={{fontSize:11,color:"#475569",marginBottom:12}}>Meta: {fmt(g.target)} · {daysLeft>0?`${daysLeft} días`:"Vencida"}</div>
+                    <div className="progress-bar" style={{marginBottom:10}}>
+                      <div className="progress-fill" style={{width:pct+"%",background:"linear-gradient(90deg,#6366f1,#a855f7)"}} />
+                    </div>
+                    <div style={{display:"flex",justifyContent:"space-between",marginBottom:12}}>
+                      <div>
+                        <div style={{fontSize:18,fontWeight:700,color:"#a5b4fc",fontFamily:"'Syne',sans-serif"}}>{fmt(g.saved)}</div>
+                        <div style={{fontSize:10,color:"#475569"}}>ahorrado</div>
+                      </div>
+                      <div style={{textAlign:"right"}}>
+                        <div style={{fontSize:14,fontWeight:600,color:"#64748b"}}>{pct.toFixed(0)}%</div>
+                        {monthly>0&&<div style={{fontSize:10,color:"#475569"}}>{fmt(monthly)}/mes</div>}
+                      </div>
+                    </div>
+                    <div style={{display:"flex",gap:8}}>
+                      <button className="btn btn-ghost" style={{fontSize:11,padding:"4px 12px",flex:1}} onClick={()=>openModal("goal",g)}>Editar</button>
+                      <button className="btn btn-danger" onClick={()=>deleteItem("goals",g.id)}>✕</button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {tab==="junio" && <JunePlanner />}
+
+        {tab==="budget" && (
+          <div>
+            <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:15,color:"#c7d2fe",marginBottom:4}}>Presupuesto mensual</div>
+            <div style={{fontSize:12,color:"#475569",marginBottom:16}}>Ajustá los límites por categoría</div>
+            <div className="card">
+              {Object.keys(data.budget).map((cat)=>{
+                const budgeted=data.budget[cat]||0;
+                const spent=stats.expByCategory[cat]||0;
+                const over=spent>budgeted&&budgeted>0;
+                return (
+                  <div key={cat} style={{display:"flex",alignItems:"center",gap:12,marginBottom:14,flexWrap:"wrap"}}>
+                    <div style={{width:160,fontSize:13}}>{ICONS[cat]||"•"} {cat}</div>
+                    <input className="input" style={{width:90,flex:"0 0 90px"}} type="number" value={budgeted} onChange={(e)=>saveBudget(cat,e.target.value)} />
+                    <div style={{flex:1,minWidth:80}}>
+                      <div className="progress-bar">
+                        <div className="progress-fill" style={{width:budgeted>0?Math.min(100,(spent/budgeted)*100)+"%":"0%",background:over?"#f87171":"#6366f1"}} />
+                      </div>
+                    </div>
+                    <div style={{fontSize:12,color:over?"#f87171":"#64748b",width:70,textAlign:"right"}}>{fmt(spent)}</div>
+                  </div>
+                );
+              })}
+              <div style={{marginTop:8,paddingTop:12,borderTop:"1px solid #1e1e2e",display:"flex",justifyContent:"space-between"}}>
+                <span style={{fontSize:13,color:"#94a3b8"}}>Total presupuestado</span>
+                <span style={{fontFamily:"'Syne',sans-serif",fontWeight:700,color:"#a5b4fc"}}>{fmt(Object.values(data.budget).reduce((s,v)=>s+v,0))}</span>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {modal && (
+        <div className="overlay" onClick={()=>setModal(null)}>
+          <div className="modal" onClick={(e)=>e.stopPropagation()}>
+
+            {modal==="transaction" && (
+              <>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,marginBottom:20}}>{form.id?"Editar":"Nuevo movimiento"}</div>
+                <div style={{display:"flex",gap:8,marginBottom:16}}>
+                  {["income","expense"].map((t)=>(
+                    <button key={t} onClick={()=>setForm((f)=>({...f,type:t,category:CATEGORIES[t][0]}))}
+                      style={{flex:1,padding:"10px",background:form.type===t?(t==="income"?"#4ade8022":"#f8717122"):"transparent",color:form.type===t?(t==="income"?"#4ade80":"#f87171"):"#64748b",border:`1px solid ${form.type===t?(t==="income"?"#4ade8044":"#f8717144"):"#1e1e2e"}`,borderRadius:10,cursor:"pointer",fontFamily:"inherit",fontSize:13}}>
+                      {t==="income"?"↑ Ingreso":"↓ Gasto"}
+                    </button>
+                  ))}
+                </div>
+                <div className="grid2">
+                  <div><div className="label">Categoría</div>
+                    <select className="input" value={form.category} onChange={(e)=>setForm((f)=>({...f,category:e.target.value}))}>
+                      {(CATEGORIES[form.type]||[]).map((c)=><option key={c}>{c}</option>)}
+                    </select>
+                  </div>
+                  <div><div className="label">Monto (€)</div><input className="input" type="number" value={form.amount} onChange={(e)=>setForm((f)=>({...f,amount:e.target.value}))} /></div>
+                  <div><div className="label">Fecha</div><input className="input" type="date" value={form.date} onChange={(e)=>setForm((f)=>({...f,date:e.target.value}))} /></div>
+                  <div><div className="label">Nota</div><input className="input" type="text" value={form.note} onChange={(e)=>setForm((f)=>({...f,note:e.target.value}))} /></div>
+                </div>
+                <div style={{display:"flex",gap:10,marginTop:20}}>
+                  <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setModal(null)}>Cancelar</button>
+                  <button className="btn btn-primary" style={{flex:2}} onClick={saveTransaction}>Guardar</button>
+                </div>
+              </>
+            )}
+
+            {modal==="debt" && (
+              <>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,marginBottom:20}}>{form.id?"Editar deuda":"Nueva deuda"}</div>
+                <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                  <div><div className="label">Nombre</div><input className="input" value={form.name||""} onChange={(e)=>setForm((f)=>({...f,name:e.target.value}))} /></div>
+                  <div className="grid2">
+                    <div><div className="label">Total</div><input className="input" type="number" value={form.total||""} onChange={(e)=>setForm((f)=>({...f,total:e.target.value}))} /></div>
+                    <div><div className="label">Pagado</div><input className="input" type="number" value={form.paid||0} onChange={(e)=>setForm((f)=>({...f,paid:e.target.value}))} /></div>
+                    <div><div className="label">Cuota mensual</div><input className="input" type="number" value={form.monthlyPayment||0} onChange={(e)=>setForm((f)=>({...f,monthlyPayment:e.target.value}))} /></div>
+                    <div><div className="label">Vencimiento</div><input className="input" type="date" value={form.due||today()} onChange={(e)=>setForm((f)=>({...f,due:e.target.value}))} /></div>
+                  </div>
+                  <div><div className="label">Moneda</div>
+                    <select className="input" value={form.currency||"EUR"} onChange={(e)=>setForm((f)=>({...f,currency:e.target.value}))}>
+                      <option value="EUR">EUR</option>
+                      <option value="ARS">ARS</option>
+                    </select>
+                  </div>
+                  <div><div className="label">Nota</div><input className="input" value={form.note||""} onChange={(e)=>setForm((f)=>({...f,note:e.target.value}))} /></div>
+                </div>
+                <div style={{display:"flex",gap:10,marginTop:20}}>
+                  <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setModal(null)}>Cancelar</button>
+                  <button className="btn btn-primary" style={{flex:2}} onClick={saveDebt}>Guardar</button>
+                </div>
+              </>
+            )}
+
+            {modal==="goal" && (
+              <>
+                <div style={{fontFamily:"'Syne',sans-serif",fontWeight:700,fontSize:16,marginBottom:20}}>{form.id?"Editar meta":"Nueva meta"}</div>
+                <div style={{display:"flex",flexDirection:"column",gap:12}}>
+                  <div className="grid2">
+                    <div><div className="label">Ícono</div><input className="input" value={form.icon||""} onChange={(e)=>setForm((f)=>({...f,icon:e.target.value}))} /></div>
+                    <div><div className="label">Nombre</div><input className="input" value={form.name||""} onChange={(e)=>setForm((f)=>({...f,name:e.target.value}))} /></div>
+                    <div><div className="label">Objetivo (€)</div><input className="input" type="number" value={form.target||""} onChange={(e)=>setForm((f)=>({...f,target:e.target.value}))} /></div>
+                    <div><div className="label">Ahorrado (€)</div><input className="input" type="number" value={form.saved||0} onChange={(e)=>setForm((f)=>({...f,saved:e.target.value}))} /></div>
+                  </div>
+                  <div><div className="label">Fecha límite</div><input className="input" type="date" value={form.deadline||today()} onChange={(e)=>setForm((f)=>({...f,deadline:e.target.value}))} /></div>
+                </div>
+                <div style={{display:"flex",gap:10,marginTop:20}}>
+                  <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setModal(null)}>Cancelar</button>
+                  <button className="btn btn-primary" style={{flex:2}} onClick={saveGoal}>Guardar</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Bottom nav — mobile only */}
+      <div className="bottom-nav">
+        {[["dashboard","📊","Resumen"],["transactions","💳","Movim."],["debts","⊖","Deudas"],["goals","◎","Metas"],["budget","📋","Budget"],["junio","🗓️","Junio"]].map(([id,icon,lbl])=>(
+          <button key={id} className={`bottom-tab${tab===id?" active":""}`} onClick={()=>setTab(id)}>
+            <span className="icon">{icon}</span>
+            <span className="lbl">{lbl}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TxRow({ t }) {
+  return (
+    <div className="tx-row">
+      <div className="badge" style={{background:t.type==="income"?"#4ade8011":"#f8717111"}}>{ICONS[t.category]||"•"}</div>
+      <div style={{flex:1}}>
+        <div style={{fontSize:13,fontWeight:500}}>{t.category}</div>
+        <div style={{fontSize:11,color:"#475569"}}>{t.note} · {t.date}</div>
+      </div>
+      <div style={{fontWeight:600,color:t.type==="income"?"#4ade80":"#f87171",fontFamily:"'Syne',sans-serif",fontSize:14}}>
+        {t.type==="income"?"+":"-"}{new Intl.NumberFormat("es-AR",{style:"currency",currency:"EUR",maximumFractionDigits:0}).format(t.amount)}
+      </div>
+    </div>
+  );
+}
+
+function StaticTip({ stats, healthScore, totalMonthlyDebt }) {
+  const tip = useMemo(() => {
+    const debtRatio = (totalMonthlyDebt / 2650) * 100;
+    if (stats.balance < 0)
+      return "🚨 Tu balance del mes es negativo — revisá en qué categorías podés recortar antes de que termine el mes.";
+    if (debtRatio > 40)
+      return `📊 Tus cuotas fijas son el ${debtRatio.toFixed(0)}% de tu sueldo. No tomes deuda nueva este mes y destiná cualquier ingreso extra a amortizar la de menor saldo.`;
+    if (healthScore < 50)
+      return "⚠️ Tu salud financiera necesita atención. Intentá destinar al menos €100 extra por mes a reducir deuda antes de diciembre.";
+    if (stats.balance > 200)
+      return `✅ Cerrás bien el mes con €${stats.balance.toFixed(0)} de margen. Aprovechá para sumar algo al fondo de emergencia.`;
+    return "📌 Mantené el control de las cuotas fijas y apuntá a no agregar gastos variables hasta fin de mes.";
+  }, [stats, healthScore, totalMonthlyDebt]);
+
+  return (
+    <div style={{background:"#0d1117",border:"1px solid #1e3a1e",borderRadius:12,padding:"14px 16px"}}>
+      <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:8}}>
+        <span>✦</span>
+        <span style={{fontFamily:"'Syne',sans-serif",fontSize:13,fontWeight:700,color:"#4ade80"}}>Consejo del mes</span>
+      </div>
+      <div style={{fontSize:13,color:"#94a3b8",lineHeight:1.6}}>{tip}</div>
+    </div>
+  );
+}
+
+function JunePlanner() {
+  const RENT   = 608;
+  const CUOTAS = 626.96;
+
+  const [income,  setIncome]  = useState(3100);
+  const [german,  setGerman]  = useState(500);
+  const [jesus,   setJesus]   = useState(800);
+  const [franco,  setFranco]  = useState(100);
+  const [elvira,  setElvira]  = useState(100);
+  const [milena,  setMilena]  = useState(0);
+  const [weekly,       setWeekly]       = useState(100);
+  const [vinted,       setVinted]       = useState(300);
+  const [shopify,      setShopify]      = useState(0);
+  const [shopifyInvest,setShopifyInvest]= useState(0);
+  const [ventaExtra,   setVentaExtra]   = useState(0);
+
+  const living      = weekly * 4;
+  const netShopify  = shopify - shopifyInvest;
+  const totalIncome = income + vinted + shopify + ventaExtra;
+  const fixed     = RENT + CUOTAS;
+  const committed = german + jesus;
+  const optional  = franco + elvira + milena;
+  const totalOut  = fixed + committed + optional + living + shopifyInvest;
+  const balance   = totalIncome - totalOut;
+  const balColor  = balance >= 0 ? "#4ade80" : "#f87171";
+
+  const scenario = (amt) => { setFranco(amt); setElvira(amt); setMilena(amt); };
+
+  function SliderRow({ label, value, setValue, max, color }) {
+    color = color || "#6366f1";
+    return (
+      <div style={{ marginBottom:18 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", marginBottom:6, fontSize:13 }}>
+          <span style={{ color:"#94a3b8" }}>{label}</span>
+          <span style={{ color, fontWeight:700, fontFamily:"'Syne',sans-serif", fontSize:15 }}>€{value.toFixed(0)}</span>
+        </div>
+        <input type="range" min={0} max={max} step={10} value={value}
+          onChange={e => setValue(Number(e.target.value))}
+          style={{ accentColor: color }} />
+        <div style={{ display:"flex", justifyContent:"space-between", fontSize:10, color:"#334155", marginTop:2 }}>
+          <span>€0</span><span>€{max}</span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display:"flex", flexDirection:"column", gap:16 }}>
+
+      {/* Resultado grande */}
+      <div className="card" style={{ background:balance>=0?"#0d1a0d":"#1a0505", borderColor:balColor+"44", textAlign:"center", padding:28 }}>
+        <div style={{ fontSize:11, color:"#475569", textTransform:"uppercase", letterSpacing:".1em", marginBottom:8 }}>Balance proyectado · Junio 2026</div>
+        <div style={{ fontSize:48, fontWeight:800, color:balColor, fontFamily:"'Syne',sans-serif", lineHeight:1 }}>
+          {balance>=0?"+":""}{fmtDec(balance)}
+        </div>
+        <div style={{ fontSize:12, color:"#475569", marginTop:10 }}>
+          {fmtDec(totalIncome)} ingresos — {fmtDec(totalOut)} gastos totales
+        </div>
+      </div>
+
+      {/* Ingreso */}
+      <div className="card">
+        <div style={{ fontFamily:"'Syne',sans-serif", fontSize:13, fontWeight:700, color:"#c7d2fe", marginBottom:12 }}>💰 Ingresos estimados</div>
+        <div style={{ display:"flex", alignItems:"center", gap:12, marginBottom:16 }}>
+          <span style={{ fontSize:13, color:"#94a3b8", flex:1 }}>Sueldo junio</span>
+          <input className="input" type="number" value={income}
+            onChange={e => setIncome(Number(e.target.value))}
+            style={{ width:110, textAlign:"right" }} />
+        </div>
+        <SliderRow label={`🛍️ Vinted · ${Math.round(vinted/60)} ventas estimadas`} value={vinted} setValue={setVinted} max={600} color="#4ade80" />
+
+        {/* Shopify */}
+        <div style={{ borderTop:"1px solid #1e1e2e", paddingTop:16, marginTop:4 }}>
+          <div style={{ fontFamily:"'Syne',sans-serif", fontSize:12, fontWeight:700, color:"#a5b4fc", marginBottom:14, letterSpacing:".04em" }}>SHOPIFY</div>
+          <SliderRow label="🛒 Ventas estimadas" value={shopify} setValue={setShopify} max={3000} color="#818cf8" />
+          <SliderRow label="📦 Inversión (stock, ads, etc.)" value={shopifyInvest} setValue={setShopifyInvest} max={shopify||1} color="#f87171" />
+          <div style={{ background: netShopify>=0?"#6366f111":"#f8717111", border:`1px solid ${netShopify>=0?"#6366f133":"#f8717133"}`, borderRadius:8, padding:"8px 12px", fontSize:13, display:"flex", justifyContent:"space-between", marginBottom:4 }}>
+            <span style={{ color:"#64748b" }}>Ganancia neta Shopify</span>
+            <span style={{ color: netShopify>=0?"#818cf8":"#f87171", fontWeight:700 }}>{netShopify>=0?"+":""}{fmtDec(netShopify)}</span>
+          </div>
+        </div>
+
+        {/* Venta extra */}
+        <div style={{ borderTop:"1px solid #1e1e2e", paddingTop:16, marginTop:4 }}>
+          <div style={{ fontFamily:"'Syne',sans-serif", fontSize:12, fontWeight:700, color:"#fbbf24", marginBottom:14, letterSpacing:".04em" }}>VENTA PUNTUAL</div>
+          <SliderRow label="🏍️ Moto / tech del hogar / artículo" value={ventaExtra} setValue={setVentaExtra} max={5000} color="#fbbf24" />
+        </div>
+
+        <div style={{ background:"#4ade8011", border:"1px solid #4ade8022", borderRadius:8, padding:"8px 12px", fontSize:13, display:"flex", justifyContent:"space-between", marginTop:8 }}>
+          <span style={{ color:"#64748b" }}>Total ingresos</span>
+          <span style={{ color:"#4ade80", fontWeight:700 }}>{fmtDec(totalIncome)}</span>
+        </div>
+      </div>
+
+      {/* Fijos */}
+      <div className="card" style={{ background:"#0f0f1a" }}>
+        <div style={{ fontFamily:"'Syne',sans-serif", fontSize:13, fontWeight:700, color:"#c7d2fe", marginBottom:12 }}>📌 Gastos fijos (inamovibles)</div>
+        {[["🏠 Alquiler", RENT],["📅 Cuotas banco (AIB + Revolut)", CUOTAS]].map(([l,v])=>(
+          <div key={l} style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:8 }}>
+            <span style={{ color:"#64748b" }}>{l}</span>
+            <span style={{ color:"#f87171" }}>-{fmtDec(v)}</span>
+          </div>
+        ))}
+        <div style={{ borderTop:"1px solid #1e1e2e", paddingTop:8, display:"flex", justifyContent:"space-between", fontWeight:700, fontSize:13 }}>
+          <span style={{ color:"#94a3b8" }}>Subtotal fijos</span>
+          <span style={{ color:"#f87171" }}>-{fmtDec(fixed)}</span>
+        </div>
+        <div style={{ marginTop:8, fontSize:11, color:"#334155" }}>
+          Quedan disponibles tras fijos: <span style={{ color:"#fbbf24" }}>{fmtDec(income - fixed)}</span>
+        </div>
+      </div>
+
+      {/* Deudas comprometidas */}
+      <div className="card">
+        <div style={{ fontFamily:"'Syne',sans-serif", fontSize:13, fontWeight:700, color:"#c7d2fe", marginBottom:16 }}>⊖ Pagos comprometidos</div>
+        <SliderRow label="Germán" value={german} setValue={setGerman} max={500} color="#fb923c" />
+        <SliderRow label="Jesús ⚠️ vence 30/05" value={jesus} setValue={setJesus} max={800} color="#f87171" />
+        <div style={{ borderTop:"1px solid #1e1e2e", paddingTop:8, display:"flex", justifyContent:"space-between", fontWeight:700, fontSize:13 }}>
+          <span style={{ color:"#94a3b8" }}>Subtotal</span>
+          <span style={{ color:"#fb923c" }}>-{fmtDec(committed)}</span>
+        </div>
+        <div style={{ marginTop:8, fontSize:11, color:"#334155" }}>
+          Quedan tras fijos + comprometidos: <span style={{ color:"#fbbf24" }}>{fmtDec(income - fixed - committed)}</span>
+        </div>
+      </div>
+
+      {/* Pagos parciales */}
+      <div className="card">
+        <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16, flexWrap:"wrap", gap:8 }}>
+          <div style={{ fontFamily:"'Syne',sans-serif", fontSize:13, fontWeight:700, color:"#c7d2fe" }}>🤝 Pagos parciales (a elegir)</div>
+          <div style={{ display:"flex", gap:6, flexWrap:"wrap" }}>
+            {[0,50,100,150,200].map(n=>(
+              <button key={n} onClick={()=>scenario(n)}
+                style={{ padding:"4px 10px", fontSize:11, background: franco===n&&elvira===n&&milena===n?"#6366f1":"#1e1e2e",
+                  color: franco===n&&elvira===n&&milena===n?"white":"#94a3b8",
+                  border:"1px solid #2e2e4e", borderRadius:6, cursor:"pointer", fontFamily:"inherit" }}>
+                €{n}c/u
+              </button>
+            ))}
+          </div>
+        </div>
+        <SliderRow label="Franco" value={franco} setValue={setFranco} max={500} color="#a5b4fc" />
+        <SliderRow label="Elvira" value={elvira} setValue={setElvira} max={500} color="#a5b4fc" />
+        <SliderRow label="Milena" value={milena} setValue={setMilena} max={500} color="#a5b4fc" />
+        <div style={{ borderTop:"1px solid #1e1e2e", paddingTop:8, display:"flex", justifyContent:"space-between", fontWeight:700, fontSize:13 }}>
+          <span style={{ color:"#94a3b8" }}>Subtotal parciales</span>
+          <span style={{ color:"#a5b4fc" }}>-{fmtDec(optional)}</span>
+        </div>
+      </div>
+
+      {/* Gastos de vida */}
+      <div className="card">
+        <div style={{ fontFamily:"'Syne',sans-serif", fontSize:13, fontWeight:700, color:"#c7d2fe", marginBottom:4 }}>🛒 Gastos de vida</div>
+        <div style={{ fontSize:11, color:"#475569", marginBottom:16 }}>Ingresá el gasto semanal — el mes se calcula × 4</div>
+        <SliderRow label="Por semana" value={weekly} setValue={setWeekly} max={400} color="#fbbf24" />
+        <div style={{ background:"#fbbf2411", border:"1px solid #fbbf2422", borderRadius:8, padding:"8px 12px", fontSize:13, display:"flex", justifyContent:"space-between" }}>
+          <span style={{ color:"#64748b" }}>Total mensual (× 4 semanas)</span>
+          <span style={{ color:"#fbbf24", fontWeight:700 }}>{fmtDec(living)}</span>
+        </div>
+      </div>
+
+      {/* Tabla resumen */}
+      <div className="card" style={{ background:"#0a0a0f" }}>
+        <div style={{ fontFamily:"'Syne',sans-serif", fontSize:13, fontWeight:700, color:"#c7d2fe", marginBottom:14 }}>📋 Resumen junio</div>
+        {[
+          ["💰 Sueldo",                 +income,     "#4ade80"],
+          ["🛍️ Vinted",               +vinted,     "#4ade80"],
+          ["🛒 Shopify ventas",        +shopify,    "#818cf8"],
+          ["🏍️ Venta puntual",        +ventaExtra, "#fbbf24"],
+          ["📦 Shopify inversión",     -shopifyInvest, "#f87171"],
+          ["🏠 Alquiler",              -RENT,       "#f87171"],
+          ["📅 Cuotas banco",          -CUOTAS,     "#f87171"],
+          ["⊖ Germán",                 -german,     "#fb923c"],
+          ["⊖ Jesús",                  -jesus,      "#fb923c"],
+          ["🤝 Franco",                -franco,     "#a5b4fc"],
+          ["🤝 Elvira",                -elvira,     "#a5b4fc"],
+          ["🤝 Milena",                -milena,     "#a5b4fc"],
+          ["🛒 Gastos de vida",        -living,     "#fbbf24"],
+        ].map(([l,v,c])=>(
+          <div key={l} style={{ display:"flex", justifyContent:"space-between", fontSize:13, marginBottom:8 }}>
+            <span style={{ color:"#64748b" }}>{l}</span>
+            <span style={{ color:c, fontWeight:500 }}>{v>=0?"+":""}{fmtDec(v)}</span>
+          </div>
+        ))}
+        <div style={{ borderTop:"1px solid #2e2e4e", paddingTop:12, display:"flex", justifyContent:"space-between", alignItems:"center" }}>
+          <span style={{ fontFamily:"'Syne',sans-serif", fontWeight:700, fontSize:14, color:"#e2e8f0" }}>Balance</span>
+          <span style={{ fontFamily:"'Syne',sans-serif", fontWeight:800, fontSize:22, color:balColor }}>
+            {balance>=0?"+":""}{fmtDec(balance)}
+          </span>
+        </div>
+      </div>
+
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
